@@ -1,0 +1,92 @@
+# Frailty proteomics: analysis source code
+
+This collection contains selected analysis scripts for a study of circulating proteins and frailty using genetic summary statistics.
+
+## Coverage
+
+Included: summary-statistic extraction, frailty GWAS indexing, cis-instrument MR, quantitative-trait colocalization, locus fine-mapping, protein-altering variant annotation and aggregation, MR sensitivity analyses, enrichment and protein interaction analysis.
+
+This release is an analysis-source collection, not a complete end-to-end reproduction bundle. Final publication figure assembly scripts, the complete Olink validation workflow, original MAGMA execution scripts, study-specific task/configuration tables and input data are not included. Some scripts create diagnostic plots, but these do not recreate the final publication figures.
+
+## Script guide
+
+Scripts include English input/output notes and method comments. File names and relative paths are retained for compatibility.
+
+| Script | Purpose |
+|---|---|
+| [analyse_assay_v3.R](scripts/analyse_assay_v3.R) | Core-assay MR and quantitative-trait colocalization |
+| [analyse_followup_v2.R](scripts/analyse_followup_v2.R) | Follow-up assay MR and colocalization |
+| [annotate_pav.py](scripts/annotate_pav.py) | Fetch variant consequences from Ensembl GRCh37 REST |
+| [annotate_pav_extra.py](scripts/annotate_pav_extra.py) | Fetch additional variant consequences |
+| [extract_decode_v2.py](scripts/extract_decode_v2.py) | Extract deCODE regional summary statistics |
+| [extract_fi.py](scripts/extract_fi.py) | Extract FI summary statistics around candidate genes |
+| [extract_followup.py](scripts/extract_followup.py) | Extract follow-up pQTL regions |
+| [extract_region.py](scripts/extract_region.py) | Extract initial pQTL regions |
+| [freeze_followup_regions.py](scripts/freeze_followup_regions.py) | Define fixed follow-up locus anchors |
+| [freeze_regions_v2.R](scripts/freeze_regions_v2.R) | Define initial locus anchors from Fenland discovery signals |
+| [full_mr_v4.py](scripts/full_mr_v4.py) | Estimate cis-instrument Mendelian randomization for one assay |
+| [index_fi_sqlite.py](scripts/index_fi_sqlite.py) | Build an indexed FI GWAS lookup database |
+| [local_enrichment_corrected_v2.R](scripts/local_enrichment_corrected_v2.R) | Test enrichment using platform-specific tested-gene backgrounds |
+| [local_ppi_corrected.py](scripts/local_ppi_corrected.py) | Extract STRING interactions among foreground proteins |
+| [locus_multisignal.R](scripts/locus_multisignal.R) | Fine-map the shared NMT1/HEXIM region |
+| [mr_sensitivity_final.R](scripts/mr_sensitivity_final.R) | Assess MR heterogeneity, directionality and influence |
+| [prepare_final_candidates.py](scripts/prepare_final_candidates.py) | Assemble harmonized candidate instruments for sensitivity analyses |
+| [reduce_analysis.R](scripts/reduce_analysis.R) | Combine and validate core-assay results |
+| [reduce_followup.py](scripts/reduce_followup.py) | Combine follow-up assay results |
+| [reduce_full_mr_v4.py](scripts/reduce_full_mr_v4.py) | Aggregate the full MR scan and adjust for multiple testing |
+| [reduce_pav_final.py](scripts/reduce_pav_final.py) | Combine allele-matched PAV annotations and LD proxies |
+| [reduce_sensitivity_final.py](scripts/reduce_sensitivity_final.py) | Combine completed MR sensitivity tasks |
+
+## Dependencies
+
+R 4.3.3; data.table 1.17.8; coloc 5.2.3; susieR 0.12.35; MendelianRandomization 0.10.0; ggplot2 3.5.2; jsonlite 2.0.0; AnnotationDbi 1.64.1; org.Hs.eg.db 3.18.0.
+
+Python analysis environment: 3.13.5. The included Python scripts use the standard library. PLINK: 1.90b7.2. UCSC liftOver is required for genome-build conversion. Software must be installed separately under its own license.
+
+## Inputs and relative paths
+
+Run commands from the repository root. Create `work/`, put executable PLINK and liftOver programs in `bin/`, and prepare inputs under `data/`. These directories and third-party data are not distributed.
+
+- `data/fi/fi_summary_GRCh37.txt.gz`: preprocessed FI GWAS with columns SNP, CHR, POS, INC_ALLELE, DEC_ALLELE, BETA, SE, P, N, MAF.
+- `data/reference/EUR_1000Genome_phase3_all`: PLINK reference prefix (.bed/.bim/.fam), 1000 Genomes Phase 3 EUR.
+- `data/reference/UCSC/liftOver/hg38ToHg19/hg38ToHg19.over.chain.gz`: genome-build conversion chain.
+- `data/reference/STRING/v12.0/`: STRING reference files expected by the interaction script.
+- `data/reference/Reactome/ReactomePathways.gmt` and `data/reference/GO/go-edit.obo`: enrichment references; match these to the reference release used.
+- `data/previous_mr.tsv`: previous MR results required for comparison by the MR aggregation script (not included).
+
+Study-specific task tables and harmonized inputs must be supplied before execution. Paths stored inside task tables must also be adjusted to the local installation. Inspect each script's opening input statements for the exact expected schemas. Missing input tables are not generated by this distribution.
+
+## Analysis order
+
+1. Prepare source summary statistics, task tables, region definitions and reference data.
+2. Extract regional statistics and index the FI GWAS.
+3. Run per-task MR and colocalization analyses, then aggregate completed tasks.
+4. Annotate PAVs and supply LD results before PAV aggregation.
+5. Prepare candidate instruments, run sensitivity analyses and aggregate results.
+6. Run shared-locus, enrichment and interaction analyses on the required upstream results.
+
+Example syntax, only after the required inputs are present:
+
+```sh
+python3 scripts/index_fi_sqlite.py
+python3 scripts/full_mr_v4.py 1 pilot
+Rscript scripts/analyse_assay_v3.R 1 pilot
+Rscript scripts/mr_sensitivity_final.R 1 pilot
+```
+
+Task IDs are one-based. The second argument selects pilot or production output directories. Many scripts intentionally stop if an output directory already exists; use a fresh workspace for a rerun. A successful single task does not establish completion of the full analysis.
+
+## Source data access
+
+Obtain third-party data under the original providers' access terms:
+
+- FI GWAS: https://doi.org/10.1111/acel.13459
+- Fenland pQTL: https://doi.org/10.1126/science.abj1541
+- deCODE pQTL: https://doi.org/10.1038/s41588-021-00978-w
+- UKB-PPP pQTL: https://doi.org/10.1038/s41586-023-06592-6
+- 1000 Genomes: https://www.internationalgenome.org/data/
+- Ensembl GRCh37 REST: https://grch37.rest.ensembl.org/
+
+## Version
+
+This source-code collection is version 1.0.0. Cite the repository URL and release tag to identify this version. Third-party software and data remain subject to their providers' licenses and access terms.
